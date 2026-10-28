@@ -7,32 +7,102 @@ import psycopg
 from dotenv import load_dotenv
 from psycopg.rows import dict_row
 
-load_dotenv()
+load_dotenv()   
 
-mcp = MCPServer(
-    "Weather Disaster Intelligence"
+# Set up the MCP server with a name and description.
+mcp = MCPServer("Weather & Disaster Intelligence")
+
+# Add a resource to provide a catalog of the weather database datasets and limitations.
+@mcp.resource(
+    "weather://database/catalog",
+    name="Weather Database Catalog",
+    description="Describes the weather forecast and disaster alert datasets available to the MCP server.",
+    mime_type="application/json",
 )
 
-# Temporary sample data.
-# We will connect PostgreSQL later.
-WEATHER_DATA = [
-    {
-        "district": "Korba",
-        "rainfall_mm": 125.5,
-        "risk": "High",
-    },
-    {
-        "district": "Raipur",
-        "rainfall_mm": 42.0,
-        "risk": "Moderate",
-    },
-    {
-        "district": "Bilaspur",
-        "rainfall_mm": 18.5,
-        "risk": "Low",
-    },
-]
+# Add a resource to provide a catalog of the weather database datasets and limitations.
+def get_weather_database_catalog() -> str:
+    """Return a JSON catalog of the weather database datasets and limitations."""
+    catalog = {
+        "datasets": [
+            {
+                "name": "district_wise_7dayfc_severity",
+                "table": "weatherdata.district_wise_7dayfc_severity",
+                "description": "District-wise 7-day weather forecasts and severity levels.",
+                "available_fields": [
+                    "days",
+                    "date",
+                    "district",
+                    "temp_min",
+                    "temp_max",
+                    "rain_percent",
+                    "rain_precip",
+                    "wind",
+                    "humidity",
+                    "visibility",
+                    "condition_text",
+                ],
+            },
+            {
+                "name": "disaster_ndma",
+                "table": "weatherdata.disaster_ndma",
+                "description": "Normalized NDMA disaster alerts.",
+                "available_fields": [
+                    "district",
+                    "state_ut",
+                    "severity",
+                    "effective_start_time",
+                    "effective_end_time",
+                    "disaster_type",
+                    "warning_message",
+                    "alert_source",
+                    "inserted_at",
+                ],
+            },
+        ],
+        "limitations": [
+            "The forecast dataset contains only the available 7-day forecasts.",
+            "A forecast beyond the available dates requires another forecast source or a validated predictive model.",
+            "Historical observations must be available separately for historical trend analysis or model training.",
+        ],
+    }
 
+    return json.dumps(catalog, indent=2)
+
+# Define a prompt for analyzing weather risk in a district, focusing on forecast and active disaster alerts.
+@mcp.prompt()
+def analyze_weather_risk(
+    district: str,
+    focus: str = "forecast and active disaster alerts",
+) -> str:
+    """Analyze a district's weather forecast and disaster risks."""
+
+    return f"""
+You are a Weather and Disaster Intelligence Assistant.
+
+Analyze the weather situation for the district: {district}
+
+Analysis focus: {focus}
+
+Instructions:
+1. Use get_district_forecast to retrieve the available forecast.
+2. Use get_disaster_alerts to retrieve relevant disaster alerts.
+3. Use get_district_disaster_summary if a combined district summary is useful.
+4. Explain temperature, rainfall, wind, visibility, and relevant severity levels
+   using only the data returned by the tools.
+5. Clearly identify active alerts and their effective times when available.
+6. If a tool returns no data, state that the information is unavailable.
+7. Do not invent forecast values or claim to predict weather beyond the
+   available forecast period.
+8. Distinguish retrieved weather data from your own explanation.
+
+Present the answer with:
+- Forecast summary
+- Relevant disaster alerts
+- Potential risks
+- Practical precautions
+- Data limitations
+"""
 
 def get_db_connection():
     """Create a PostgreSQL connection using environment variables."""
