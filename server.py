@@ -104,6 +104,7 @@ Present the answer with:
 - Data limitations
 """
 
+# Database Connection Setup
 def get_db_connection():
     """Create a PostgreSQL connection using environment variables."""
     return psycopg.connect(
@@ -118,6 +119,29 @@ def get_db_connection():
     )
 
 
+# Validation Function
+def validate_district_and_limit(
+    district: str,
+    limit: int
+) -> tuple[str, int]:
+
+    district = district.strip()
+
+    if not district:
+        raise ValueError("District name cannot be empty.")
+
+    if len(district) > 100:
+        raise ValueError("District name is too long.")
+
+    if not isinstance(limit, int) or isinstance(limit, bool):
+        raise ValueError("Limit must be an integer.")
+
+    if limit < 1 or limit > 31:
+        raise ValueError("Limit must be between 1 and 31.")
+
+    return district, limit
+
+# Tools 
 @mcp.tool()
 def get_district_forecast(
     district: str,

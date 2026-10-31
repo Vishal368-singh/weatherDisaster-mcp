@@ -1,0 +1,16 @@
+
+services:
+  weather-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: weather-mcp-server
+
+    env_file:
+      - .env
+
+    restart: unless-stopped
+
+    stdin_open: true
+    tty: false
